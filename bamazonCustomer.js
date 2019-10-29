@@ -1,5 +1,6 @@
 var mysql = require("mysql");
 var inquirer = require("inquirer");
+var total = 0;
 
 // Setting up MySQL connection
 var connection = mysql.createConnection({
@@ -9,63 +10,129 @@ var connection = mysql.createConnection({
     database: 'bamazon'
 });
 
-
 connection.connect(function(){
-    displayAll();
+    displayAllCustomer();
+    prompt();
 });
 
-function displayAll(){
+// Function for displaying table
+function displayAllCustomer() {
+    
     connection.query('SELECT * FROM products', function (error, results) {
         if (error) throw error;
 
-        // character length variables
-        var idLength = 0;
-        var idSpace = 0;
-        var productNameLength = 0;
-        var productNameSpace = 0;
-        var departmentNameLength = 0;
-        var departmentNameSpace = 0;
-        var priceLength = 0;
-        var priceSpace = 0;
-        var stockQuantityLength = 0;
-        var stockQuantitySpace = 0;
-        var totalLength = 0;
-        var totalSpace = 0;
-        
-        // finds the value with the longest character length from each collumn 
+        //Column width starts out as the size of the table headers
+        var columnWidth = [];
+        for (var i = 0; i < Object.keys(results[0]).length; i++) {
+            columnWidth[i] = Object.keys(results[0])[i].length;
+        }
+
+        //Finds the value with the longest character length from each collumn 
+        for (var i = 0; i < results.length; i++) {
+            for(var j = 0; j < Object.keys(results[0]).length; j++){
+                if(Object.values(results[i])[j].toString().length > columnWidth[j]){
+                    columnWidth[j] = Object.values(results[i])[j].toString().length
+                }
+            }
+        }
+
+        //Console logs the headers
+        var headerString = "\n| ";
+        for(var i = 0; i < Object.keys(results[0]).length; i++){
+            var temp = Object.keys(results[0])[i] + "\xa0".repeat(columnWidth[i] - Object.keys(results[0])[i].toString().length) + " | ";
+            headerString += temp;
+        }
+        console.log(headerString);
+        console.log("-".repeat(headerString.length));
+
+        //Console logs the table
+        var valuesString = "| ";
         for(var i = 0; i < results.length; i++){
-            if(results[i].item_id.toString().length > idLength){
-                idLength = results[i].item_id.toString().length;
-                idSpace = "\xa0".repeat(idLength);
+            for(var j = 0; j < Object.values(results[i]).length; j++){
+                var temp = Object.values(results[i])[j] + "\xa0".repeat(columnWidth[j] - Object.values(results[i])[j].toString().length) + " | ";
+                if(j == Object.values(results[i]).length - 1 && i !== results.length - 1){
+                    temp += "\n| ";
+                }
+                valuesString += temp;
             }
-            if(results[i].product_name.length > productNameLength){
-                productNameLength = results[i].product_name.length;
-                productNameSpace ="\xa0".repeat(productNameLength);
-            }
-            if(results[i].department_name.length > departmentNameLength){
-                departmentNameLength = results[i].department_name.length;
-                departmentNameSpace = "\xa0".repeat(departmentNameLength);
-            }
-            if(results[i].price.toString().length > priceLength){
-                priceLength = results[i].price.toString().length;
-                priceSpace = "\xa0".repeat(priceLength);
-            }
-            if(results[i].stock_quantity.toString().length > stockQuantityLength)
-                stockQuantityLength = results[i].stock_quantity.toString().length;
-                stockQuantitySpace = "\xa0".repeat(stockQuantityLength);
         }
-        totalLength = idLength + productNameLength + departmentNameLength + priceLength + stockQuantityLength + 19;
-        for(var i = 0; i < totalLength; i++){
-            process.stdout.write("_");
-        }
-        console.log("");
-        for(var i = 0; i < results.length; i++){
-            console.log("| " + results[i].item_id + idSpace + "|" + results[i].product_name + productNameSpace + "|");
-            // console.log("| " + results[i].item_id + " | " + results[i].product_name + " | " + results[i].department_name + " | " + results[i].price + " | " + results[i].stock_quanity + " |");
-        }
-        for(var i = 0; i < totalLength; i++){
-            process.stdout.write("_");
-        }
+        console.log(valuesString);
+        console.log("-".repeat(headerString.length));
+         
     });
-    connection.end();
 }
+
+//Inquirer questions
+function prompt(){
+
+    setTimeout(function(){
+    inquirer
+    .prompt([
+                {
+            type: 'input',
+            name: 'id',
+            message: 'What is the ID of the product you would like to buy?',
+            filter: Number
+        },
+        {
+            type: 'input',
+            name: 'units',
+            message: 'How many would you like?',
+            filter: Number
+        },
+        {
+            type: 'list',
+            name: 'continue',
+            message: 'Would you like to continue?',
+            choices: [
+                'Continue?',
+                'Exit?'
+            ],
+            filter: function(value){
+                if(value == 'Exit?'){
+                    connection.end();
+                    process.exit();
+                }
+            }
+        },
+    ])
+    .then(answers => {
+        updateTable(answers);
+    });
+    }, 100); 
+}
+
+//Updates the table
+function updateTable(answers){
+    connection.query(
+        "SELECT stock_quantity, price FROM products WHERE item_id = " + answers.id,
+        function(error, results){
+            if (error) throw error;
+            
+            var price = results[0].price;
+
+            if(results[0].stock_quantity < answers.units){
+                answers.units = 0;
+                console.log("Insufficient quantity!");
+                displayAllCustomer();
+                prompt();
+            }
+            else
+            connection.query(
+                "UPDATE products SET stock_quantity = stock_quantity - " + answers.units + " WHERE item_id = " + answers.id,
+                function(error) {
+                  if (error) throw error;
+                  total += answers.units * price;
+                  console.log("You have spent $" + total);
+                  console.log("Bid placed successfully!");
+                  
+                  displayAllCustomer();
+                  prompt();
+                }
+            );
+        }
+    );
+
+    
+}
+
