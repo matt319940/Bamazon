@@ -37,27 +37,27 @@ function displayAllCustomer() {
         }
 
         //Console logs the headers
-        var headerString = "\n| ";
+        var headerString = "\n│ ";
         for(var i = 0; i < Object.keys(results[0]).length; i++){
-            var temp = Object.keys(results[0])[i] + "\xa0".repeat(columnWidth[i] - Object.keys(results[0])[i].toString().length) + " | ";
+            var temp = Object.keys(results[0])[i] + "\xa0".repeat(columnWidth[i] - Object.keys(results[0])[i].toString().length) + " │ ";
             headerString += temp;
         }
         console.log(headerString);
-        console.log("-".repeat(headerString.length));
+        console.log("╔" + "═".repeat(headerString.length - 4) + "╗");
 
         //Console logs the table
-        var valuesString = "| ";
+        var valuesString = "║ ";
         for(var i = 0; i < results.length; i++){
             for(var j = 0; j < Object.values(results[i]).length; j++){
-                var temp = Object.values(results[i])[j] + "\xa0".repeat(columnWidth[j] - Object.values(results[i])[j].toString().length) + " | ";
+                var temp = Object.values(results[i])[j] + "\xa0".repeat(columnWidth[j] - Object.values(results[i])[j].toString().length) + " ║ ";
                 if(j == Object.values(results[i]).length - 1 && i !== results.length - 1){
-                    temp += "\n| ";
+                    temp += "\n║ ";
                 }
                 valuesString += temp;
             }
         }
         console.log(valuesString);
-        console.log("-".repeat(headerString.length));
+        console.log("╚" + "═".repeat(headerString.length-4) + "╝");
          
     });
 }
@@ -80,21 +80,21 @@ function prompt(){
             message: 'How many would you like?',
             filter: Number
         },
-        {
-            type: 'list',
-            name: 'continue',
-            message: 'Would you like to continue?',
-            choices: [
-                'Continue?',
-                'Exit?'
-            ],
-            filter: function(value){
-                if(value == 'Exit?'){
-                    connection.end();
-                    process.exit();
-                }
-            }
-        },
+        // {
+        //     type: 'list',
+        //     name: 'continue',
+        //     message: 'Would you like to continue?',
+        //     choices: [
+        //         'Continue?',
+        //         'Exit?'
+        //     ],
+        //     filter: function(value){
+        //         if(value == 'Exit?'){
+        //             connection.end();
+        //             process.exit();
+        //         }
+        //     }
+        // },
     ])
     .then(answers => {
         updateTable(answers);
@@ -119,7 +119,7 @@ function updateTable(answers){
             }
             else
             connection.query(
-                "UPDATE products SET stock_quantity = stock_quantity - " + answers.units + " WHERE item_id = " + answers.id,
+                "UPDATE products SET stock_quantity = stock_quantity - " + answers.units + ", product_sales = product_sales + price * " + answers.units + " WHERE item_id = " + answers.id,
                 function(error) {
                   if (error) throw error;
                   total += answers.units * price;
